@@ -1,4 +1,5 @@
 use super::MDNS_PORT;
+use log::trace;
 use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, UdpSocket};
@@ -30,7 +31,7 @@ pub trait AddressFamily {
         #[cfg(not(windows))]
         #[cfg(not(target_os = "illumos"))]
         socket.set_reuse_port(true)?;
-
+        trace!("addr to send from: {:?}", &addr.as_socket());
         socket.bind(&addr)?;
         Self::join_multicast(&socket, &Self::MDNS_GROUP)?;
         Ok(socket.into())
@@ -46,7 +47,7 @@ impl AddressFamily for Inet {
     const DOMAIN: Domain = Domain::IPV4;
 
     fn join_multicast(socket: &Socket, multiaddr: &Self::Addr) -> io::Result<()> {
-        socket.join_multicast_v4(multiaddr, &Ipv4Addr::UNSPECIFIED)
+        socket.join_multicast_v4(multiaddr, &Self::ANY_ADDR)
     }
 }
 

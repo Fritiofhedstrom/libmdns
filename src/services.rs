@@ -10,6 +10,7 @@ pub type AnswerBuilder = dns_parser::Builder<dns_parser::Answers>;
 /// A collection of registered services is shared between threads.
 pub type Services = Arc<RwLock<ServicesInner>>;
 
+#[derive(Debug)]
 pub struct ServicesInner {
     hostname: Name<'static>,
     /// main index

@@ -1,6 +1,6 @@
 pub fn main() {
     let mut builder = env_logger::Builder::new();
-    builder.parse_filters("libmdns=debug");
+    builder.parse_filters("libmdns=trace");
     builder.init();
 
     let responder = libmdns::Responder::new().unwrap();

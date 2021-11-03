@@ -1,5 +1,5 @@
 use futures_util::{future, future::FutureExt};
-use log::warn;
+use log::{trace, warn};
 use std::cell::RefCell;
 use std::future::Future;
 use std::io;
@@ -41,6 +41,7 @@ type ResponderTask = Box<dyn Future<Output = ()> + Send + Unpin>;
 impl Responder {
     /// Spawn a responder task on an os thread.
     pub fn new() -> io::Result<Responder> {
+        println!("new Responder");
         let (tx, rx) = std::sync::mpsc::sync_channel(0);
         thread::Builder::new()
             .name("mdns-responder".to_owned())
@@ -93,7 +94,7 @@ impl Responder {
         }
 
         let services = Arc::new(RwLock::new(ServicesInner::new(hostname)));
-
+        trace!("services: {:?}", services);
         let v4 = FSM::<Inet>::new(&services);
         let v6 = FSM::<Inet6>::new(&services);
 
@@ -110,7 +111,7 @@ impl Responder {
 
             (Err(err), _) => return Err(err),
         };
-
+        trace!("with_default_handle() Commands: {:?} ", commands); 
         let commands = CommandSender(commands);
         let responder = Responder {
             services: services,
@@ -184,6 +185,7 @@ impl Responder {
 
 impl Drop for Service {
     fn drop(&mut self) {
+        println!("Drop Service");
         let svc = self.services.write().unwrap().unregister(self.id);
         self.commands.send_unsolicited(svc, 0, false);
     }
@@ -193,6 +195,7 @@ struct Shutdown(CommandSender);
 
 impl Drop for Shutdown {
     fn drop(&mut self) {
+        trace!("Drop Shutdown");
         self.0.send_shutdown();
         // TODO wait for tasks to shutdown
     }
@@ -203,11 +206,13 @@ struct CommandSender(Vec<mpsc::UnboundedSender<Command>>);
 impl CommandSender {
     fn send(&mut self, cmd: Command) {
         for tx in self.0.iter_mut() {
+            println!("Sending cmd: {:?}", cmd);
             tx.send(cmd.clone()).expect("responder died");
         }
     }
 
     fn send_unsolicited(&mut self, svc: ServiceData, ttl: u32, include_ip: bool) {
+        println!("Send unsolicited svc: {:?} ttl: {} and include_ip: {}", svc, ttl, include_ip);
         self.send(Command::SendUnsolicited {
             svc: svc,
             ttl: ttl,

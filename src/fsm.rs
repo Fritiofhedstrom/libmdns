@@ -104,8 +104,8 @@ impl<AF: AddressFamily> FSM<AF> {
 
         for question in packet.questions {
             debug!(
-                "received question: {:?} {}",
-                question.qclass, question.qname
+                "received question: {:?} | {:?} | {}",
+                question.qclass, question.qu, question.qname
             );
 
             if question.qclass == QueryClass::IN || question.qclass == QueryClass::Any {
@@ -116,6 +116,7 @@ impl<AF: AddressFamily> FSM<AF> {
                 }
             }
         }
+        debug!{"_________________________________________________________________"};
 
         if !multicast_builder.is_empty() {
             let response = multicast_builder.build().unwrap_or_else(|x| x);
@@ -135,7 +136,7 @@ impl<AF: AddressFamily> FSM<AF> {
         mut builder: AnswerBuilder,
     ) -> AnswerBuilder {
         let services = self.services.read().unwrap();
-
+        trace!("question.qtype: {:?}, qname: {}", question.qtype, question.qname);
         match question.qtype {
             QueryType::A | QueryType::AAAA | QueryType::All
                 if question.qname == *services.get_hostname() =>
@@ -213,6 +214,7 @@ impl<AF: AddressFamily> FSM<AF> {
         if !builder.is_empty() {
             let response = builder.build().unwrap_or_else(|x| x);
             let addr = SocketAddr::new(AF::MDNS_GROUP.into(), MDNS_PORT);
+            trace!("response unsolicited: {:?}", &response);
             self.outgoing.push_back((response, addr));
         }
     }
@@ -243,9 +245,9 @@ impl<AF: Unpin + AddressFamily> Future for FSM<AF> {
             Ok(_) => (),
             Err(e) => error!("ResponderRecvPacket Error: {:?}", e),
         }
-
+        trace!("number of outgoing packets: {}", pinned.outgoing.len());
         while let Some((ref response, addr)) = pinned.outgoing.pop_front() {
-            trace!("sending packet to {:?}", addr);
+            trace!("sending response packet to {:?}", addr);
 
             match pinned.socket.poll_send_to(cx, response, addr) {
                 Poll::Ready(Ok(bytes_sent)) if bytes_sent == response.len() => (),
